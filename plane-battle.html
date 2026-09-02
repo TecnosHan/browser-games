@@ -114,12 +114,20 @@
   const BOSS_SCORE0 = 3000;        // ボス撃破スコア
   const BOSS_ENTER_Y = 92;         // ボスの停止位置
   const BOSS_RADIUS = 34;
-  const ITEM_DROP_CHANCE = 0.07;   // 敵機撃破時アイテムドロップ率（半減）
+  const ITEM_DROP_CHANCE = 0.07;   // 敵機撃破時アイテムドロップ率
+  const MAX_WEAPON = 5;            // 武器の最大レベル
   const ITEM = {
-    rapid:  { label: 'RAPID FIRE',  color: '#ffe27a', icon: 'R',  dur: 10 },
-    three:  { label: '3-WAY SHOT',  color: '#7fd4ff', icon: '3',  dur: 10 },
+    power:  { label: 'POWER UP',    color: '#ffe27a', icon: 'P',  dur: 0 },
     shield: { label: 'SHIELD',      color: '#7dff9e', icon: 'S',  dur: 10 },
     heal:   { label: 'HP RESTORE',  color: '#ff7fb0', icon: 'HP', dur: 0 },
+  };
+  // 武器レベル (1..MAX_WEAPON)：角度 / 横ずれ / 射撃間隔倍率（anglesとoffsetsは同数要素）
+  const WEAPON = {
+    1: { angles: [0],                 offsets: [0],         interval: 1.00 },
+    2: { angles: [0, 0],              offsets: [-7, 7],     interval: 1.00 },
+    3: { angles: [0, 0],              offsets: [-8, 8],     interval: 0.75 },
+    4: { angles: [-0.14, 0, 0.14],    offsets: [0, 0, 0],   interval: 0.75 },
+    5: { angles: [-0.16, 0, 0.16],    offsets: [-4, 0, 4],  interval: 0.58 },
   };
 
   // —— 状態 ——
@@ -128,7 +136,7 @@
   let player, bullets, ebullets, enemies, particles, popups, stars;
   let keys = {}, firing = false, fireTimer = 0, spawnTimer = 0, invuln = 0;
   let boss = null, bossCount = 0, bossNextScore = BOSS_FIRST_SCORE;
-  let items = [], power = { rapid: 0, three: 0 }, shield = 0;
+  let items = [], wlevel = 1, shield = 0;
 
   // 星フィールド
   stars = [];
@@ -150,7 +158,7 @@
     bullets = []; ebullets = []; enemies = []; particles = []; popups = [];
     firing = false; fireTimer = 0; spawnTimer = 1; invuln = 1.5;
     boss = null; bossCount = 0; bossNextScore = BOSS_FIRST_SCORE;
-    items = []; power.rapid = 0; power.three = 0; shield = 0;
+    items = []; wlevel = 1; shield = 0;
     updatePowerHud();
     updateHud();
   }
@@ -161,12 +169,10 @@
   }
 
   function updatePowerHud() {
-    const parts = [];
-    if (power.rapid > 0) parts.push('Rapid ' + power.rapid.toFixed(1));
-    if (power.three > 0) parts.push('3-Way ' + power.three.toFixed(1));
+    const parts = ['PWR Lv.' + wlevel];
     if (shield > 0) parts.push('Shield ' + shield.toFixed(1));
     powerEl.textContent = parts.join('   ');
-    powerEl.style.opacity = parts.length ? '1' : '0';
+    powerEl.style.opacity = '1';
   }
 
   // —— 敵機の出現（時間で種類の比率も変化） ——
@@ -247,7 +253,7 @@
   }
   function pickItemType() {
     // 重み付き抽選（HP満タン時は回復を避ける）
-    let pool = [['rapid', 30], ['three', 24], ['shield', 26], ['heal', 20]];
+    let pool = [['power', 46], ['shield', 30], ['heal', 24]];
     if (lives >= MAX_LIVES) pool = pool.filter(([t]) => t !== 'heal');
     const total = pool.reduce((s, [, w]) => s + w, 0);
     let roll = rand(0, total);
@@ -267,8 +273,8 @@
   }
   function dropBossItems(bx, by) {
     for (let i = 0; i < 2; i++) {
-      let pool = ['rapid', 'three', 'shield'];
-      if (lives < MAX_LIVES && Math.random() < 0.4) pool.push('heal');
+      let pool = ['power', 'shield'];
+      if (lives < MAX_LIVES && Math.random() < 0.45) pool.push('heal');
       const t = pool[Math.floor(Math.random() * pool.length)];
       dropItemAt(bx + rand(-24, 24), by + 24, t);
     }
@@ -278,10 +284,13 @@
     if (it.type === 'heal') {
       if (lives >= MAX_LIVES) { score += 500; addPopup(it.x, it.y, 'SCORE +500', cf.color); updateHud(); }
       else { lives++; updateHud(); addPopup(it.x, it.y, 'HP RESTORED!', cf.color); }
-    } else if (it.type === 'rapid') {
-      power.rapid = cf.dur; addPopup(it.x, it.y, cf.label + '！', cf.color);
-    } else if (it.type === 'three') {
-      power.three = cf.dur; addPopup(it.x, it.y, cf.label + '！', cf.color);
+    } else if (it.type === 'power') {
+      if (wlevel >= MAX_WEAPON) {
+        score += 500; addPopup(it.x, it.y, 'MAX! +500', cf.color); updateHud();
+      } else {
+        wlevel++; addPopup(it.x, it.y, 'WEAPON Lv.' + wlevel + '!', cf.color);
+        updatePowerHud();
+      }
     } else {
       shield = cf.dur; addPopup(it.x, it.y, cf.label + '！', cf.color);
     }
@@ -300,6 +309,12 @@
     lives--;
     updateHud();
     if (lives <= 0) { endGame(); return true; }
+    // 被弾で武器が1段階下がる（最低 Lv.1）
+    if (wlevel > 1) {
+      wlevel--;
+      addPopup(player.x, player.y - 30, 'POWER DOWN!', '#ffffff');
+      updatePowerHud();
+    }
     invuln = 2;
     return false;
   }
@@ -410,14 +425,15 @@
     player.x = Math.max(18, Math.min(W - 18, player.x + dx * PLAYER_SPEED * dt));
     player.y = Math.max(40, Math.min(H - 24, player.y + dy * PLAYER_SPEED * dt));
 
-    // 発射（連射強化・3WAY対応）
+    // 発射（武器レベルで弾道と射速が変化）
     fireTimer -= dt;
-    const interval = power.rapid > 0 ? FIRE_INTERVAL * 0.55 : FIRE_INTERVAL;
+    const wcfg = WEAPON[wlevel] || WEAPON[1];
+    const interval = FIRE_INTERVAL * wcfg.interval;
     if (firing && fireTimer <= 0) {
       fireTimer = interval;
-      const angles = power.three > 0 ? [-0.16, 0, 0.16] : [0];
-      for (const a of angles) {
-        bullets.push({ x: player.x + Math.sin(a) * 4, y: player.y - 22, vx: Math.sin(a) * BULLET_SPEED, vy: -Math.cos(a) * BULLET_SPEED });
+      for (let i = 0; i < wcfg.angles.length; i++) {
+        const a = wcfg.angles[i];
+        bullets.push({ x: player.x + wcfg.offsets[i] + Math.sin(a) * 4, y: player.y - 22, vx: Math.sin(a) * BULLET_SPEED, vy: -Math.cos(a) * BULLET_SPEED });
       }
     }
 
@@ -521,9 +537,7 @@
       if (f.t <= 0) popups.splice(i, 1);
     }
 
-    // 強化効果の残り時間・シールド
-    if (power.rapid > 0) power.rapid -= dt;
-    if (power.three > 0) power.three -= dt;
+    // シールド残り時間
     if (shield > 0) shield -= dt;
     updatePowerHud();
 
@@ -799,7 +813,7 @@
     startBtn.textContent = lose ? 'PLAY AGAIN' : 'START';
     descEl.innerHTML = lose
       ? 'Final Score: <em style="color:#ffd23e;font-size:28px">' + score + '</em><br>Take to the skies and try again!'
-      : 'Use <b>← → ↑ ↓</b> or <b>W A S D</b> to move and <b>SPACE</b> to shoot<br>Score points by shooting down enemies! Reach <b>15,000</b> to call in a <b>BOSS</b>!<br>Enemies drop <b>power-ups</b> — fly into them to grab!';
+      : 'Use <b>← → ↑ ↓</b> or <b>W A S D</b> to move and <b>SPACE</b> to shoot<br>Score points by shooting down enemies! Reach <b>15,000</b> to call in a <b>BOSS</b>!<br>Grab <b>P</b> to upgrade your weapon <b>(Lv.1–5)</b> — losing a life drops your level!';
   }
 
   function startGame() {

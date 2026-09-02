@@ -1,5 +1,5 @@
 // Sky Fighter sanity harness: stub DOM/canvas, drive the game loop in the same script scope,
-// and exercise the new boss/item logic.
+// and exercise the boss/item/weapon-logic.
 const fs = require('fs');
 const vm = require('vm');
 
@@ -46,11 +46,27 @@ const selftest = `
 
   startGame();
   ok(state === 'playing', 'startGame -> playing');
+  ok(wlevel === 1, 'new game starts at weapon Lv.1');
 
+  // —— 武器レベルごとの弾数 ——
   firing = true;
   runMs(160, 16);
   ok(bullets.length > 0, 'player bullets spawn while firing');
 
+  bullets = []; wlevel = 2; fireTimer = 0;
+  run(1, 16);
+  ok(bullets.length === 2, 'Lv.2 fires 2 parallel bullets');
+
+  bullets = []; wlevel = 3; fireTimer = 0;
+  run(1, 16);
+  ok(bullets.length === 2, 'Lv.3 still fires 2 (faster)');
+
+  bullets = []; wlevel = 4; fireTimer = 0;
+  run(1, 16);
+  ok(bullets.length === 3, 'Lv.4 fires 3-way');
+
+  // ボス戦は無敵で安定させる
+  invuln = 30;
   score = 15000;
   runMs(160, 16);
   ok(boss !== null, 'boss spawned when score >= threshold (' + bossNextScore + ')');
@@ -84,31 +100,45 @@ const selftest = `
   ok(lives === 3, 'lives unchanged with shield');
   ok(invuln > 0, 'brief invuln after shield block');
 
-  // normal hit removes life
-  shield = 0; invuln = 0; lives = 3;
+  // normal hit removes life AND drops weapon level
+  shield = 0; invuln = 0; lives = 3; wlevel = 4;
   ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
   runMs(32, 16);
   ok(lives === 2, 'life lost on direct hit');
+  ok(wlevel === 3, 'weapon dropped one level on hit');
   ok(invuln >= 1.9, '2s invuln after losing life');
+
+  // weapon never drops below Lv.1
+  shield = 0; invuln = 0; lives = 2; wlevel = 1;
+  ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
+  runMs(32, 16);
+  ok(lives === 1, 'life lost at Lv.1');
+  ok(wlevel === 1, 'weapon stays at Lv.1');
 
   // heal item（前のボス残件をクリア）
   items = [];
-  lives = 2;
+  invuln = 30; shield = 0;
+  lives = 1;
   items.push(itemEntity('heal', player.x, player.y));
   runMs(32, 16);
-  ok(lives === 3, 'heal item restores +1 life');
+  ok(lives === 2, 'heal item restores +1 life');
   ok(items.length === 0, 'heal item consumed on pickup');
 
-  // power-ups
-  items = [];
-  items.push(itemEntity('rapid', player.x, player.y));
-  items.push(itemEntity('three', player.x, player.y));
+  // power-up (weapon upgrade)
+  items = []; bullets = [];
+  wlevel = 2; fireTimer = 1;
+  items.push(itemEntity('power', player.x, player.y));
   run(1, 16);
-  ok(Math.abs(power.rapid - 10) < 0.05, 'rapid power-up set (10s)');
-  ok(Math.abs(power.three - 10) < 0.05, 'three power-up set (10s)');
-  runMs(4800, 16);
-  ok(power.rapid < 10, 'rapid timer counts down');
-  ok(power.three < 10, 'three timer counts down');
+  ok(wlevel === 3, 'power item upgrades weapon to Lv.3');
+  ok(items.length === 0, 'power item consumed on pickup');
+
+  // max level: cap + bonus points
+  wlevel = MAX_WEAPON;
+  const s0 = score;
+  items.push(itemEntity('power', player.x, player.y));
+  run(1, 16);
+  ok(wlevel === MAX_WEAPON, 'power item capped at max level');
+  ok(score === s0 + 500, 'max level power grants +500');
 
   // death -> game over
   lives = 1; shield = 0; invuln = 0;
@@ -117,7 +147,7 @@ const selftest = `
   ok(state === 'over', 'state = over after last life');
 
   startGame();
-  ok(boss === null && items.length === 0 && power.rapid === 0 && power.three === 0 && shield === 0, 'reset clears boss/items/powers');
+  ok(boss === null && items.length === 0 && wlevel === 1 && shield === 0, 'reset clears boss/items/weapon/shield');
   ok(bossNextScore === 15000, 'next boss threshold reset to 15000');
 
   this.__results = R;
