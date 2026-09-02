@@ -110,6 +110,9 @@
 
   // —— ボス・強化アイテム 定数 ——
   const BOSS_FIRST_SCORE = 15000;  // 最初のボス戦の開始スコア
+  const BOSS_INTERVAL0 = 50;       // 2体目以降の出現間隔の基準（秒）
+  const BOSS_INTERVAL_ADD = 5;     // ボス撃破ごとに間隔を伸ばす秒数
+  const BOSS_INTERVAL_MAX = 70;    // 出現間隔の上限（秒）
   const BOSS_HP0 = 90;             // ボスHP（ボス撃破ごとに増加）
   const BOSS_SCORE0 = 3000;        // ボス撃破スコア
   const BOSS_ENTER_Y = 92;         // ボスの停止位置
@@ -135,7 +138,7 @@
   let score = 0, lives = MAX_LIVES, elapsed = 0;
   let player, bullets, ebullets, enemies, particles, popups, stars;
   let keys = {}, firing = false, fireTimer = 0, spawnTimer = 0, invuln = 0;
-  let boss = null, bossCount = 0, bossNextScore = BOSS_FIRST_SCORE;
+  let boss = null, bossCount = 0, bossNextScore = BOSS_FIRST_SCORE, bossNextAt = 0;
   let items = [], wlevel = 1, shield = 0;
   let rings = [], smokes = [], shake = 0, flashA = 0;
 
@@ -158,7 +161,7 @@
     player = { x: W / 2, y: H - 70, r: 15, tilt: 0 };
     bullets = []; ebullets = []; enemies = []; particles = []; popups = [];
     firing = false; fireTimer = 0; spawnTimer = 1; invuln = 1.5;
-    boss = null; bossCount = 0; bossNextScore = BOSS_FIRST_SCORE;
+    boss = null; bossCount = 0; bossNextScore = BOSS_FIRST_SCORE; bossNextAt = 0;
     items = []; wlevel = 1; shield = 0;
     rings = []; smokes = []; shake = 0; flashA = 0;
     updatePowerHud();
@@ -421,14 +424,21 @@
     ebullets = [];
     updateHud();
     dropBossItems(b.x, b.y);
-    // 次のボスまでの目安を伸ばす
-    bossNextScore = score + 4500 + bossCount * 1500;
+    // 次のボスは時間ベースで呼ぶ（撃破間隔は少しずつ伸びる）
+    bossNextAt = elapsed + Math.min(BOSS_INTERVAL_MAX, BOSS_INTERVAL0 + bossCount * BOSS_INTERVAL_ADD);
   }
 
   // —— 更新 ——
   function update(dt) {
     elapsed += dt;
-    if (!boss && score >= bossNextScore) spawnBoss();
+    // ボス出現：1体目はスコア、2体目以降は時間で（武器強化で頻度が変わらない）
+    if (!boss) {
+      if (bossCount === 0) {
+        if (score >= bossNextScore) spawnBoss();
+      } else if (elapsed >= bossNextAt) {
+        spawnBoss();
+      }
+    }
     updateDifficultyAndSpawn(dt);
     updateBoss(dt);
     if (invuln > 0) invuln -= dt;
@@ -1093,7 +1103,7 @@
     startBtn.textContent = lose ? 'PLAY AGAIN' : 'START';
     descEl.innerHTML = lose
       ? 'Final Score: <em style="color:#ffd23e;font-size:28px">' + score + '</em><br>Take to the skies and try again!'
-      : 'Use <b>← → ↑ ↓</b> or <b>W A S D</b> to move and <b>SPACE</b> to shoot<br>Score points by shooting down enemies! Reach <b>15,000</b> to call in a <b>BOSS</b>!<br>Grab <b>P</b> to upgrade your weapon <b>(Lv.1–5)</b> — losing a life drops your level!';
+      : 'Use <b>← → ↑ ↓</b> or <b>W A S D</b> to move and <b>SPACE</b> to shoot<br>Score points by shooting down enemies! Reach <b>15,000</b> to call in the first <b>BOSS</b> — later bosses arrive on a timer.<br>Grab <b>P</b> to upgrade your weapon <b>(Lv.1–5)</b> — losing a life drops your level!';
   }
 
   function startGame() {

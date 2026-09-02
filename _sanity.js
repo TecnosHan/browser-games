@@ -89,11 +89,24 @@ const selftest = `
   ok(bossCount === 1, 'bossCount kept at 1');
   ok(score >= 15000 + 3000, 'boss score granted (+3000)');
   ok(items.length >= 2, 'boss dropped 2 items');
-  ok(bossNextScore > score, 'next boss threshold advanced past score');
+  ok(bossNextAt > elapsed, 'next boss scheduled by time, not score');
 
+  // スコアが爆発的に伸びても次のボスはタイマー通り（強化武器で頻度が変わらない）
+  score = 99999;
   runMs(1920, 16);
-  ok(boss === null, 'no boss while score below next threshold');
+  ok(boss === null, 'no boss within ~2s despite huge score');
   ok(Array.isArray(enemies), 'enemies array intact after boss');
+
+  // タイマー満了でボスが呼ばれる（確認後に撃破して片付ける）
+  elapsed = bossNextAt - 0.001;
+  run(1, 16);
+  ok(boss !== null, 'boss spawns when boss timer elapses');
+  ok(bossCount === 2, 'second boss counted');
+  // 過剰な自火力で倒れないよう、まず戦闘位置に引き出してから撃破
+  boss.phase = 'fight'; boss.y = 92;
+  boss.hp = 1; bullets.push({ x: boss.x, y: boss.y, vx: 0, vy: -100 });
+  runMs(48, 16);
+  ok(boss === null, 'second boss defeated to clean up');
 
   // shield blocks a hit
   shield = 10; invuln = 0; lives = MAX_LIVES;
@@ -165,7 +178,7 @@ const selftest = `
 
   startGame();
   ok(boss === null && items.length === 0 && wlevel === 1 && shield === 0, 'reset clears boss/items/weapon/shield');
-  ok(bossNextScore === 15000, 'next boss threshold reset to 15000');
+  ok(bossNextScore === 15000 && bossNextAt === 0, 'next boss schedule reset to first-boss state');
 
   this.__results = R;
 `;
