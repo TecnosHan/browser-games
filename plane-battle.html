@@ -528,14 +528,23 @@
       const b = ebullets[i];
       b.x += b.vx * dt; b.y += b.vy * dt;
 
-      // 自弾で相殺できる
-      let gone = false;
-      for (let j = bullets.length - 1; j >= 0; j--) {
-        if (Math.hypot(b.x - bullets[j].x, b.y - bullets[j].y) < b.r + 6) {
-          bullets.splice(j, 1); gone = true; break;
+      // 撃ち落とせるのは爆撃機の砲弾だけ（他の弾は避けるしかない）
+      if (b.kind === 'blast') {
+        let gone = false;
+        for (let j = bullets.length - 1; j >= 0; j--) {
+          if (Math.hypot(b.x - bullets[j].x, b.y - bullets[j].y) < b.r + 6) {
+            bullets.splice(j, 1); gone = true; break;
+          }
+        }
+        if (gone) {
+          // 撃ち落とし：小さく爆ぜる
+          rings.push({ x: b.x, y: b.y, r: 3, vr: 96, life: 0.22, t: 0, color: '255,190,90', lw: 2 });
+          particles.push({ x: b.x, y: b.y, vx: rand(-44, 44), vy: rand(-70, -8), life: 0.2, t: 0, c: '#ffb36b', r: 2.4 });
+          particles.push({ x: b.x, y: b.y, vx: rand(-32, 32), vy: rand(-16, 42), life: 0.18, t: 0, c: '#ffdf6b', r: 2 });
+          ebullets.splice(i, 1);
+          continue;
         }
       }
-      if (gone) { ebullets.splice(i, 1); continue; }
 
       if (b.y > H + 20 || b.y < -20 || b.x < -20 || b.x > W + 20) { ebullets.splice(i, 1); continue; }
 

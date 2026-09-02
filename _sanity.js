@@ -143,6 +143,20 @@ const selftest = `
   ok(wlevel === MAX_WEAPON, 'power item capped at max level');
   ok(score === s0 + 500, 'max level power grants +500');
 
+  // —— 敵弾の相殺ルール（爆撃弾だけ撃ち落とせる） ——
+  bullets = []; ebullets = []; items = [];
+  ebullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: 0, r: 5, kind: 'blast' });
+  bullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: -100 });
+  run(1, 16);
+  ok(ebullets.length === 0, 'bomber blast can be shot down');
+
+  ebullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: 0, r: 4, kind: 'shot' });
+  bullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: -100 });
+  run(1, 16);
+  ok(ebullets.length === 1, 'shooter bullet cannot be shot down');
+  ok(bullets.length === 1, 'player bullet passes through an indestructible bullet');
+  bullets = []; ebullets = [];
+
   // death -> game over
   lives = 1; shield = 0; invuln = 0;
   ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
