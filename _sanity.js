@@ -15,7 +15,10 @@ function el() {
 }
 const elements = {};
 const ctxProxy = new Proxy({}, {
-  get(_t, prop) { if (prop === 'createLinearGradient') return () => ({ addColorStop() {} }); return () => {}; },
+  get(_t, prop) {
+    if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => ({ addColorStop() {} });
+    return () => {};
+  },
   set() { return true; },
 });
 const canvasStub = { width: 400, height: 600, getContext: () => ctxProxy };
