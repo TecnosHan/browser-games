@@ -51,7 +51,7 @@ const selftest = `
   runMs(160, 16);
   ok(bullets.length > 0, 'player bullets spawn while firing');
 
-  score = 6000;
+  score = 15000;
   runMs(160, 16);
   ok(boss !== null, 'boss spawned when score >= threshold (' + bossNextScore + ')');
   ok(bossCount === 1, 'bossCount incremented to 1');
@@ -68,7 +68,7 @@ const selftest = `
   runMs(48, 16);
   ok(boss === null, 'boss null after defeat');
   ok(bossCount === 1, 'bossCount kept at 1');
-  ok(score >= 6000 + 3000, 'boss score granted (+3000)');
+  ok(score >= 15000 + 3000, 'boss score granted (+3000)');
   ok(items.length >= 2, 'boss dropped 2 items');
   ok(bossNextScore > score, 'next boss threshold advanced past score');
 
@@ -118,7 +118,7 @@ const selftest = `
 
   startGame();
   ok(boss === null && items.length === 0 && power.rapid === 0 && power.three === 0 && shield === 0, 'reset clears boss/items/powers');
-  ok(bossNextScore === 5000, 'next boss threshold reset to 5000');
+  ok(bossNextScore === 15000, 'next boss threshold reset to 15000');
 
   this.__results = R;
 `;

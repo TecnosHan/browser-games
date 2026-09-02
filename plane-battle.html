@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>スカイファイター</title>
+<title>Sky Fighter</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -74,16 +74,16 @@
 <body>
   <div class="game">
     <div class="hud">
-      <span>スコア <b id="score">0</b></span>
+      <span>Score <b id="score">0</b></span>
       <span class="power" id="power"></span>
-      <span class="lives" id="lives">ライフ ♥♥♥</span>
+      <span class="lives" id="lives">Lives ♥♥♥</span>
     </div>
     <div class="stage">
       <canvas id="game" width="400" height="600"></canvas>
       <div class="overlay" id="overlay">
-        <h1 id="overlayTitle">スカイファイター</h1>
+        <h1 id="overlayTitle">SKY FIGHTER</h1>
         <div class="desc" id="desc"></div>
-        <button id="startBtn">スタート</button>
+        <button id="startBtn">START</button>
       </div>
     </div>
   </div>
@@ -109,17 +109,17 @@
   const MAX_LIVES = 3;
 
   // —— ボス・強化アイテム 定数 ——
-  const BOSS_FIRST_SCORE = 5000;   // 最初のボス戦の開始スコア
+  const BOSS_FIRST_SCORE = 15000;  // 最初のボス戦の開始スコア
   const BOSS_HP0 = 90;             // ボスHP（ボス撃破ごとに増加）
   const BOSS_SCORE0 = 3000;        // ボス撃破スコア
   const BOSS_ENTER_Y = 92;         // ボスの停止位置
   const BOSS_RADIUS = 34;
-  const ITEM_DROP_CHANCE = 0.14;   // 敵機撃破時アイテムドロップ率
+  const ITEM_DROP_CHANCE = 0.07;   // 敵機撃破時アイテムドロップ率（半減）
   const ITEM = {
-    rapid:  { label: '連射強化',    color: '#ffe27a', icon: '連', dur: 10 },
-    three:  { label: '3WAYショット', color: '#7fd4ff', icon: '三', dur: 10 },
-    shield: { label: 'シールド',    color: '#7dff9e', icon: '盾', dur: 10 },
-    heal:   { label: 'HP回復',      color: '#ff7fb0', icon: 'HP', dur: 0 },
+    rapid:  { label: 'RAPID FIRE',  color: '#ffe27a', icon: 'R',  dur: 10 },
+    three:  { label: '3-WAY SHOT',  color: '#7fd4ff', icon: '3',  dur: 10 },
+    shield: { label: 'SHIELD',      color: '#7dff9e', icon: 'S',  dur: 10 },
+    heal:   { label: 'HP RESTORE',  color: '#ff7fb0', icon: 'HP', dur: 0 },
   };
 
   // —— 状態 ——
@@ -157,14 +157,14 @@
 
   function updateHud() {
     scoreEl.textContent = score;
-    livesEl.textContent = 'ライフ ' + '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(MAX_LIVES - Math.max(0, lives));
+    livesEl.textContent = 'Lives ' + '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(MAX_LIVES - Math.max(0, lives));
   }
 
   function updatePowerHud() {
     const parts = [];
-    if (power.rapid > 0) parts.push('連射 ' + power.rapid.toFixed(1));
-    if (power.three > 0) parts.push('3WAY ' + power.three.toFixed(1));
-    if (shield > 0) parts.push('シールド ' + shield.toFixed(1));
+    if (power.rapid > 0) parts.push('Rapid ' + power.rapid.toFixed(1));
+    if (power.three > 0) parts.push('3-Way ' + power.three.toFixed(1));
+    if (shield > 0) parts.push('Shield ' + shield.toFixed(1));
     powerEl.textContent = parts.join('   ');
     powerEl.style.opacity = parts.length ? '1' : '0';
   }
@@ -276,8 +276,8 @@
   function applyItem(it) {
     const cf = ITEM[it.type];
     if (it.type === 'heal') {
-      if (lives >= MAX_LIVES) { score += 500; addPopup(it.x, it.y, 'スコア+500', cf.color); updateHud(); }
-      else { lives++; updateHud(); addPopup(it.x, it.y, 'HP回復！', cf.color); }
+      if (lives >= MAX_LIVES) { score += 500; addPopup(it.x, it.y, 'SCORE +500', cf.color); updateHud(); }
+      else { lives++; updateHud(); addPopup(it.x, it.y, 'HP RESTORED!', cf.color); }
     } else if (it.type === 'rapid') {
       power.rapid = cf.dur; addPopup(it.x, it.y, cf.label + '！', cf.color);
     } else if (it.type === 'three') {
@@ -292,7 +292,7 @@
     invuln = Math.max(invuln, 0.5);
     if (shield > 0) {
       shield = 0;
-      addPopup(player.x, player.y - 24, 'シールドで防いだ！', ITEM.shield.color);
+      addPopup(player.x, player.y - 24, 'BLOCKED!', ITEM.shield.color);
       explode(player.x, player.y, 0.7);
       return false;
     }
@@ -319,7 +319,7 @@
     // ボスに集中できるよう通常の敵・敵弾を一掃
     enemies = [];
     ebullets = [];
-    addPopup(W / 2, 170, 'ボスが出現！', '#ff5b5b');
+    addPopup(W / 2, 170, 'BOSS INCOMING!', '#ff5b5b');
   }
   function bossFire() {
     const frac = Math.max(0, boss.hp) / boss.maxHp;
@@ -381,7 +381,7 @@
     boss = null;
     const pts = BOSS_SCORE0 + (bossCount - 1) * 1500;
     score += pts;
-    addPopup(b.x, b.y - 26, 'ボス撃破！', '#ff5b5b');
+    addPopup(b.x, b.y - 26, 'BOSS DOWN!', '#ff5b5b');
     addPopup(b.x, b.y + 8, '+' + pts, '#ffd23e');
     explode(b.x, b.y, 2.6);
     for (let i = 0; i < 3; i++) explode(b.x + rand(-24, 24), b.y + rand(-18, 18), 1.2);
@@ -690,7 +690,7 @@
     ctx.font = 'bold 11px "Yu Gothic", "Meiryo", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fff';
-    ctx.fillText('ボス', W / 2, y + h + 12);
+    ctx.fillText('BOSS', W / 2, y + h + 12);
   }
   function drawItems() {
     ctx.textAlign = 'center';
@@ -720,7 +720,7 @@
       ctx.font = 'bold 20px "Yu Gothic", "Meiryo", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff3b3b';
-      ctx.fillText('警告！ ボス接近！', W / 2, 130);
+      ctx.fillText('WARNING! BOSS APPROACHING!', W / 2, 130);
     }
   }
 
@@ -795,11 +795,11 @@
   function showOverlay(lose) {
     overlay.classList.add('show');
     overlay.classList.toggle('lose', lose);
-    overlayTitle.textContent = lose ? 'ゲームオーバー' : 'スカイファイター';
-    startBtn.textContent = lose ? 'もう一度 プレイ' : 'スタート';
+    overlayTitle.textContent = lose ? 'GAME OVER' : 'SKY FIGHTER';
+    startBtn.textContent = lose ? 'PLAY AGAIN' : 'START';
     descEl.innerHTML = lose
-      ? '最終スコア：<em style="color:#ffd23e;font-size:28px">' + score + '</em><br>敵機を 狙って もう一度 挑戦だ！'
-      : '<b>← → ↑ ↓</b> または <b>W A S D</b> で 移動　<b>スペース</b> で 攻撃<br>撃墜で 得点！ 一定スコアで <b>ボス</b> が 出現！<br>敵機を 落とすと <b>強化アイテム</b> が 拾えるぞ！';
+      ? 'Final Score: <em style="color:#ffd23e;font-size:28px">' + score + '</em><br>Take to the skies and try again!'
+      : 'Use <b>← → ↑ ↓</b> or <b>W A S D</b> to move and <b>SPACE</b> to shoot<br>Score points by shooting down enemies! Reach <b>15,000</b> to call in a <b>BOSS</b>!<br>Enemies drop <b>power-ups</b> — fly into them to grab!';
   }
 
   function startGame() {
