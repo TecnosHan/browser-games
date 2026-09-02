@@ -74,7 +74,8 @@ const selftest = `
   runMs(160, 16);
   ok(boss !== null, 'boss spawned when score >= threshold (' + bossNextScore + ')');
   ok(bossCount === 1, 'bossCount incremented to 1');
-  ok(boss.maxHp === 90, 'first boss HP = 90');
+  ok(boss.maxHp === bossMaxHp(), 'first boss HP follows scaling (' + boss.maxHp + ')');
+  ok(boss.maxHp > 90, 'stronger weapon demands a tougher boss');
   ok(boss.phase === 'enter' || boss.phase === 'fight', 'boss phase = enter/fight');
 
   runMs(4000, 16); // 4s: finish entry + fight
@@ -107,6 +108,15 @@ const selftest = `
   boss.hp = 1; bullets.push({ x: boss.x, y: boss.y, vx: 0, vy: -100 });
   runMs(48, 16);
   ok(boss === null, 'second boss defeated to clean up');
+
+  // ボスHPは武器レベルで上昇する（スケーリングの性質）
+  const strongHp = bossMaxHp();
+  const sw0 = wlevel;
+  wlevel = 1;
+  const lv1Hp = bossMaxHp();
+  wlevel = sw0;
+  ok(strongHp > lv1Hp, 'boss HP rises with weapon level (' + lv1Hp + ' -> ' + strongHp + ')');
+  ok(strongHp > 90, 'maxed-weapon boss is tougher than the Lv.1 baseline');
 
   // shield blocks a hit
   shield = 10; invuln = 0; lives = MAX_LIVES;

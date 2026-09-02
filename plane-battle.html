@@ -113,7 +113,10 @@
   const BOSS_INTERVAL0 = 50;       // 2体目以降の出現間隔の基準（秒）
   const BOSS_INTERVAL_ADD = 5;     // ボス撃破ごとに間隔を伸ばす秒数
   const BOSS_INTERVAL_MAX = 70;    // 出現間隔の上限（秒）
-  const BOSS_HP0 = 90;             // ボスHP（ボス撃破ごとに増加）
+  const BOSS_HP0 = 90;             // ボスHPの基準（武器Lv.1・1体目）
+  const BOSS_HP_WEAPON = 0.18;     // 武器レベル1段階ごとのHP補正（+18%）
+  const BOSS_HP_SEQ = 0.30;        // 撃破1回ごとのHP補正（+30%）
+  const BOSS_HP_SEQ_CAP = 5;       // 撃破数補正が伸び続ける上限
   const BOSS_SCORE0 = 3000;        // ボス撃破スコア
   const BOSS_ENTER_Y = 92;         // ボスの停止位置
   const BOSS_RADIUS = 34;
@@ -341,9 +344,15 @@
   }
 
   // —— ボス ——
+  // ボスHP = 基準 × 武器補正 × 撃破数補正（自機が強いほど手ごわくなる）
+  function bossMaxHp() {
+    const wp = 1 + BOSS_HP_WEAPON * (wlevel - 1);
+    const seq = 1 + BOSS_HP_SEQ * Math.min(BOSS_HP_SEQ_CAP, bossCount - 1);
+    return Math.round(BOSS_HP0 * wp * seq);
+  }
   function spawnBoss() {
     bossCount++;
-    const maxHp = BOSS_HP0 + (bossCount - 1) * 45;
+    const maxHp = bossMaxHp();     // HPは出現時点の武器レベルで決まる
     boss = {
       x: W / 2, y: -70,
       hp: maxHp, maxHp, r: BOSS_RADIUS,
