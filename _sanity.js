@@ -118,6 +118,29 @@ const selftest = `
   ok(strongHp > lv1Hp, 'boss HP rises with weapon level (' + lv1Hp + ' -> ' + strongHp + ')');
   ok(strongHp > 90, 'maxed-weapon boss is tougher than the Lv.1 baseline');
 
+  // ボス攻撃も武器レベルで強くなる（弾速・弾幕密度）
+  const pwMax = 1 + BOSS_ATK_WP * (MAX_WEAPON - 1);
+  ebullets = [];
+  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 0, pw: 1.0 };
+  bossFire();
+  const spWeak = Math.round(Math.hypot(ebullets[0].vx, ebullets[0].vy));
+  ebullets = [];
+  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 0, pw: pwMax };
+  bossFire();
+  const spStrong = Math.round(Math.hypot(ebullets[0].vx, ebullets[0].vy));
+  ok(spStrong > spWeak, 'boss bullet speed rises with weapon (' + spWeak + ' -> ' + spStrong + ')');
+
+  ebullets = [];
+  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 1, pw: 1.0 };
+  bossFire();
+  const cntWeak = ebullets.length;
+  ebullets = [];
+  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 1, pw: pwMax };
+  bossFire();
+  const cntStrong = ebullets.length;
+  ok(cntStrong > cntWeak, 'circular barrage density rises with weapon (' + cntWeak + ' -> ' + cntStrong + ')');
+  boss = null; ebullets = [];
+
   // shield blocks a hit
   shield = 10; invuln = 0; lives = MAX_LIVES;
   ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
