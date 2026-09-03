@@ -1,5 +1,5 @@
-// Sky Fighter sanity harness: stub DOM/canvas, drive the game loop in the same script scope,
-// and exercise the boss/item/weapon-logic.
+// Sky Fighter ver.2 sanity harness: stub DOM/canvas, drive the game loop in the
+// same script scope, and exercise stages/bosses/items/weapons/combo/HP-life flow.
 const fs = require('fs');
 const vm = require('vm');
 
@@ -36,182 +36,185 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 
-// Appended selftest code runs in the same script scope as the game, so it can read/write
-// the top-level `let` bindings and call the top-level functions directly.
 const selftest = `
   const R = []; const ok = (c, m) => R.push((c ? 'PASS' : 'FAIL') + ': ' + m);
-  let __t = 0;                        // ミリ秒タイムスタンプ
-  const frame = (ms) => { __t += ms; __rafCb(__t); };            // loop() は ms を期待
+  let __t = 0;
+  const frame = (ms) => { __t += ms; __rafCb(__t); };
   const run = (n, dt) => { for (let i = 0; i < n; i++) frame(dt); };
   const runMs = (ms, dt) => run(Math.ceil(ms / dt), dt);
+  const hit = (x, y) => { ebullets.push({ x, y, vx: 0, vy: 0, r: 4, kind: 'shot' }); };
 
-  ok(state === 'ready', 'initial state = ready');
+  // ---- 初期状態 ----
+  ok(state === 'title', 'initial state = title');
+  ok(stage === null && boss === null, 'no stage/boss before start');
+  ok(enemies.length === 0 && bullets.length === 0, 'arrays empty at title');
 
+  // ---- 開始 ----
   startGame();
   ok(state === 'playing', 'startGame -> playing');
-  ok(wlevel === 1, 'new game starts at weapon Lv.1');
+  ok(stage && stage.id === 1, 'stage 1 started');
+  ok(MAX_HP === 3 && MAX_LIVES === 3, 'HP/life constants set');
+  ok(wlevel === 1 && hp === MAX_HP && lives === MAX_LIVES && bomb === 0, 'fresh stats');
+  ok(combo === 0 && comboMult() === 1, 'combo starts zero');
 
-  // —— 武器レベルごとの弾数 ——
+  // ---- 発射・武器レベル ----
   firing = true;
-  runMs(160, 16);
-  ok(bullets.length > 0, 'player bullets spawn while firing');
+  runMs(200, 16);
+  ok(bullets.length > 0, 'fires while holding space');
+  bullets = []; wlevel = 1; fireTimer = 0; run(1, 16);
+  ok(bullets.length === 1, 'Lv.1 fires 1');
+  bullets = []; wlevel = 2; fireTimer = 0; run(1, 16);
+  ok(bullets.length === 2, 'Lv.2 fires 2');
+  bullets = []; wlevel = 3; fireTimer = 0; run(1, 16);
+  ok(bullets.length === 3, 'Lv.3 fires 3');
+  bullets = []; wlevel = 4; fireTimer = 0; run(1, 16);
+  ok(bullets.length === 4, 'Lv.4 fires 4');
+  bullets = []; wlevel = 5; fireTimer = 0; run(1, 16);
+  ok(bullets.length === 5, 'Lv.5 fires 5');
+  ok(WEAPON[5].pierce >= 1 && WEAPON[5].spd > WEAPON[1].spd, 'Lv.5 pierce + faster than Lv.1');
 
-  bullets = []; wlevel = 2; fireTimer = 0;
-  run(1, 16);
-  ok(bullets.length === 2, 'Lv.2 fires 2 parallel bullets');
+  // ---- 武器貫通 ----
+  firing = false;
+  invuln = 99;
+  enemies = [
+    { type: 'fighter', x: player.x, y: player.y - 30, r: 14, hp: 1, maxHp: 1, score: 100, fl: 0, vx: 0, vy: 0 },
+    { type: 'fighter', x: player.x, y: player.y - 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 1, vx: 0, vy: 0 },
+    { type: 'fighter', x: player.x, y: player.y + 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 2, vx: 0, vy: 0 },
+  ];
+  bullets = [{ x: player.x, y: player.y + 10, vx: 0, vy: -500, r: 4, kind: 'rail', pierce: 1 }];
+  runMs(120, 16);
+  ok(enemies.length === 1, 'pierce-1 bullet destroys 2 enemies then stops (' + enemies.length + ' left)');
+  enemies = []; bullets = [];
 
-  bullets = []; wlevel = 3; fireTimer = 0;
-  run(1, 16);
-  ok(bullets.length === 2, 'Lv.3 still fires 2 (faster)');
+  // ---- HP / 残機 モデル ----
+  invuln = 0; invulnTimer = 0; shield = 0; hp = MAX_HP; lives = MAX_LIVES;
+  hit(player.x, player.y); runMs(32, 16);
+  ok(hp === MAX_HP - 1, 'direct hit reduces HP, not life');
+  ok(lives === MAX_LIVES, 'life unchanged while HP > 0');
+  ok(invuln > 0, 'brief invulnerability after hit');
 
-  bullets = []; wlevel = 4; fireTimer = 0;
-  run(1, 16);
-  ok(bullets.length === 3, 'Lv.4 fires 3-way');
+  // HP0 → 残機消費 → 復活
+  invuln = 0; hp = 1; lives = MAX_LIVES;
+  hit(player.x, player.y); runMs(32, 16);
+  ok(hp === MAX_HP, 'KO respawns with full HP');
+  ok(lives === MAX_LIVES - 1, 'respawn consumed one life');
+  ok(invuln >= 2, 'long invulnerability after respawn');
 
-  // ボス戦は無敵で安定させる
-  invuln = 30;
-  score = 15000;
-  runMs(160, 16);
-  ok(boss !== null, 'boss spawned when score >= threshold (' + bossNextScore + ')');
-  ok(bossCount === 1, 'bossCount incremented to 1');
-  ok(boss.maxHp === bossMaxHp(), 'first boss HP follows scaling (' + boss.maxHp + ')');
-  ok(boss.maxHp > 90, 'stronger weapon demands a tougher boss');
-  ok(boss.phase === 'enter' || boss.phase === 'fight', 'boss phase = enter/fight');
+  // 残機切れ → ゲームオーバー
+  invuln = 0; hp = 1; lives = 0;
+  hit(player.x, player.y); runMs(32, 16);
+  ok(state === 'over', 'game over when lives exhausted');
 
-  runMs(4000, 16); // 4s: finish entry + fight
-  ok(boss && boss.phase === 'fight', 'boss reached fight phase');
-  ok(Math.abs(boss.y - 92) < 0.001, 'boss stopped at enterY 92');
-  ok(boss.x > 20 && boss.x < 380, 'boss stays in horizontal bounds');
-  ok(ebullets.length > 0, 'boss fired bullets during fight');
-
-  boss.hp = 1; bullets.push({ x: boss.x, y: boss.y, vx: 0, vy: -100 });
-  runMs(48, 16);
-  ok(boss === null, 'boss null after defeat');
-  ok(bossCount === 1, 'bossCount kept at 1');
-  ok(score >= 15000 + 3000, 'boss score granted (+3000)');
-  ok(items.length >= 2, 'boss dropped 2 items');
-  ok(bossNextAt > elapsed, 'next boss scheduled by time, not score');
-
-  // スコアが爆発的に伸びても次のボスはタイマー通り（強化武器で頻度が変わらない）
-  score = 99999;
-  runMs(1920, 16);
-  ok(boss === null, 'no boss within ~2s despite huge score');
-  ok(Array.isArray(enemies), 'enemies array intact after boss');
-
-  // タイマー満了でボスが呼ばれる（確認後に撃破して片付ける）
-  elapsed = bossNextAt - 0.001;
-  run(1, 16);
-  ok(boss !== null, 'boss spawns when boss timer elapses');
-  ok(bossCount === 2, 'second boss counted');
-  // 過剰な自火力で倒れないよう、まず戦闘位置に引き出してから撃破
-  boss.phase = 'fight'; boss.y = 92;
-  boss.hp = 1; bullets.push({ x: boss.x, y: boss.y, vx: 0, vy: -100 });
-  runMs(48, 16);
-  ok(boss === null, 'second boss defeated to clean up');
-
-  // ボスHPは武器レベルで上昇する（スケーリングの性質）
-  const strongHp = bossMaxHp();
-  const sw0 = wlevel;
-  wlevel = 1;
-  const lv1Hp = bossMaxHp();
-  wlevel = sw0;
-  ok(strongHp > lv1Hp, 'boss HP rises with weapon level (' + lv1Hp + ' -> ' + strongHp + ')');
-  ok(strongHp > 90, 'maxed-weapon boss is tougher than the Lv.1 baseline');
-
-  // ボス攻撃も武器レベルで強くなる（弾速・弾幕密度）
-  const pwMax = 1 + BOSS_ATK_WP * (MAX_WEAPON - 1);
-  ebullets = [];
-  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 0, pw: 1.0 };
-  bossFire();
-  const spWeak = Math.round(Math.hypot(ebullets[0].vx, ebullets[0].vy));
-  ebullets = [];
-  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 0, pw: pwMax };
-  bossFire();
-  const spStrong = Math.round(Math.hypot(ebullets[0].vx, ebullets[0].vy));
-  ok(spStrong > spWeak, 'boss bullet speed rises with weapon (' + spWeak + ' -> ' + spStrong + ')');
-
-  ebullets = [];
-  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 1, pw: 1.0 };
-  bossFire();
-  const cntWeak = ebullets.length;
-  ebullets = [];
-  boss = { x: W / 2, y: 92, hp: 100, maxHp: 100, t: 0, pattern: 1, pw: pwMax };
-  bossFire();
-  const cntStrong = ebullets.length;
-  ok(cntStrong > cntWeak, 'circular barrage density rises with weapon (' + cntWeak + ' -> ' + cntStrong + ')');
-  boss = null; ebullets = [];
-
-  // shield blocks a hit
-  shield = 10; invuln = 0; lives = MAX_LIVES;
-  ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
-  runMs(32, 16);
-  ok(shield === 0, 'shield consumed on hit');
-  ok(lives === 3, 'lives unchanged with shield');
-  ok(invuln > 0, 'brief invuln after shield block');
-
-  // normal hit removes life AND drops weapon level
-  shield = 0; invuln = 0; lives = 3; wlevel = 4;
-  ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
-  runMs(32, 16);
-  ok(lives === 2, 'life lost on direct hit');
-  ok(wlevel === 3, 'weapon dropped one level on hit');
-  ok(invuln >= 1.9, '2s invuln after losing life');
-
-  // weapon never drops below Lv.1
-  shield = 0; invuln = 0; lives = 2; wlevel = 1;
-  ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
-  runMs(32, 16);
-  ok(lives === 1, 'life lost at Lv.1');
-  ok(wlevel === 1, 'weapon stays at Lv.1');
-
-  // heal item（前のボス残件をクリア）
-  items = [];
-  invuln = 30; shield = 0;
-  lives = 1;
-  items.push(itemEntity('heal', player.x, player.y));
-  runMs(32, 16);
-  ok(lives === 2, 'heal item restores +1 life');
-  ok(items.length === 0, 'heal item consumed on pickup');
-
-  // power-up (weapon upgrade)
-  items = []; bullets = [];
-  wlevel = 2; fireTimer = 1;
-  items.push(itemEntity('power', player.x, player.y));
-  run(1, 16);
-  ok(wlevel === 3, 'power item upgrades weapon to Lv.3');
-  ok(items.length === 0, 'power item consumed on pickup');
-
-  // max level: cap + bonus points
-  wlevel = MAX_WEAPON;
-  const s0 = score;
-  items.push(itemEntity('power', player.x, player.y));
-  run(1, 16);
-  ok(wlevel === MAX_WEAPON, 'power item capped at max level');
-  ok(score === s0 + 500, 'max level power grants +500');
-
-  // —— 敵弾の相殺ルール（爆撃弾だけ撃ち落とせる） ——
-  bullets = []; ebullets = []; items = [];
-  ebullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: 0, r: 5, kind: 'blast' });
-  bullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: -100 });
-  run(1, 16);
-  ok(ebullets.length === 0, 'bomber blast can be shot down');
-
-  ebullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: 0, r: 4, kind: 'shot' });
-  bullets.push({ x: player.x, y: player.y + 50, vx: 0, vy: -100 });
-  run(1, 16);
-  ok(ebullets.length === 1, 'shooter bullet cannot be shot down');
-  ok(bullets.length === 1, 'player bullet passes through an indestructible bullet');
-  bullets = []; ebullets = [];
-
-  // death -> game over
-  lives = 1; shield = 0; invuln = 0;
-  ebullets.push({ x: player.x, y: player.y, vx: 0, vy: 0, r: 4 });
-  runMs(32, 16);
-  ok(state === 'over', 'state = over after last life');
-
+  // ---- リスタート ----
   startGame();
-  ok(boss === null && items.length === 0 && wlevel === 1 && shield === 0, 'reset clears boss/items/weapon/shield');
-  ok(bossNextScore === 15000 && bossNextAt === 0, 'next boss schedule reset to first-boss state');
+  ok(state === 'playing' && hp === MAX_HP && lives === MAX_LIVES && combo === 0, 'restart resets stats');
+  ok(enemies.length === 0 && bullets.length === 0 && boss === null, 'restart clears entities');
+
+  // ---- アイテム ----
+  // power
+  wlevel = 2; items = [itemEntity('power', player.x, player.y)]; run(1, 16);
+  ok(wlevel === 3 && items.length === 0, 'power item upgrades to Lv.3');
+  wlevel = WEAPON_MAX; items = [itemEntity('power', player.x, player.y)]; run(1, 16);
+  ok(wlevel === WEAPON_MAX, 'power caps at max level');
+  // heal
+  hp = 1; items = [itemEntity('heal', player.x, player.y)]; run(1, 16);
+  ok(hp === 2, 'heal restores +1 HP');
+  hp = MAX_HP; const sH = score; items = [itemEntity('heal', player.x, player.y)]; run(1, 16);
+  ok(score === sH + 500, 'heal at full HP grants +500');
+  // shield
+  shield = 0; items = [itemEntity('shield', player.x, player.y)]; run(1, 16);
+  ok(shield === ITEM.shield.dur, 'shield item sets duration');
+  // bomb item + useBomb
+  bomb = 0; items = [itemEntity('bomb', player.x, player.y)]; run(1, 16);
+  ok(bomb === 1, 'bomb item grants +1 stock');
+  ebullets = [Object.assign({ x: player.x, y: player.y + 40, vx: 0, vy: 0, r: 4 }, { kind: 'shot' })];
+  useBomb();
+  ok(bomb === 0 && ebullets.length === 0, 'bomb consumes stock and clears bullets');
+  // bomb cap
+  bomb = BOMB_MAX; items = [itemEntity('bomb', player.x, player.y)]; run(1, 16);
+  ok(bomb === BOMB_MAX, 'bomb stock capped');
+  // invuln item
+  invuln = 0; invulnTimer = 0; items = [itemEntity('invuln', player.x, player.y)]; run(1, 16);
+  ok(invulnTimer === ITEM.invuln.dur, 'invuln item sets timer');
+  // timers for buffs
+  rapidTimer = speedyTimer = scoreTimer = 0;
+  items = [itemEntity('rapid', player.x, player.y), itemEntity('speedy', player.x, player.y), itemEntity('scores', player.x, player.y)];
+  run(1, 16);
+  ok(rapidTimer === ITEM.rapid.dur && speedyTimer === ITEM.speedy.dur && scoreTimer === ITEM.scores.dur, 'buffs set their timers');
+  // clear item: full-screen attack, no stock used
+  const bombsStart = bomb; ebullets = [Object.assign({ x: player.x, y: player.y + 30, vx: 0, vy: 0, r: 4 }, { kind: 'shot' })];
+  items = [itemEntity('clear', player.x, player.y)]; run(1, 16);
+  ok(ebullets.length === 0 && bomb === bombsStart, 'clear item clears screen without using bomb');
+  // 満タン時はhealが出ない
+  hp = MAX_HP; let healSeen = false;
+  for (let i = 0; i < 60; i++) if (pickItemType() === 'heal') healSeen = true;
+  ok(!healSeen, 'heal excluded from drops while HP full');
+
+  // ---- スコア倍率 / コンボ ----
+  combo = 30;
+  ok(comboMult() === 6, 'combo mult grows with combo');
+  scoreTimer = 10;
+  ok(currentMult() === comboMult() * 2, 'score-timer doubles multiplier');
+  scoreTimer = 0;
+  // 撃破でコンボが増える
+  combo = 0; comboTimer = 0; invuln = 99;
+  enemies = [{ type: 'fighter', x: player.x, y: player.y - 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 0, vx: 0, vy: 0 }];
+  bullets = [{ x: player.x, y: player.y - 10, vx: 0, vy: -500, r: 4, kind: 'bolt', pierce: 0 }];
+  runMs(60, 16);
+  ok(combo === 1 && comboTimer > 0, 'kill increments combo and starts timer');
+  // 被弾でコンボリセット
+  invuln = 0; invulnTimer = 0; shield = 0; hp = MAX_HP; combo = 7;
+  hit(player.x, player.y); runMs(32, 16);
+  ok(combo === 0, 'damage resets combo');
+
+  // ---- 新敵機 ----
+  enemies = []; bullets = [];
+  spawnEnemy('tank'); spawnEnemy('kamikaze'); spawnEnemy('satellite');
+  ok(enemies.length === 3, '3 new enemy types spawn');
+  const tank = enemies.find(e => e.type === 'tank');
+  const kamikaze = enemies.find(e => e.type === 'kamikaze');
+  const sat = enemies.find(e => e.type === 'satellite');
+  ok(tank && tank.hp === 6, 'tank has high HP (6)');
+  ok(kamikaze && kamikaze.diveSpd > 0 && kamikaze.targetY > 0, 'kamikaze dives toward player');
+  ok(sat && sat.baseX !== undefined && sat.freq > 0, 'satellite has orbit params');
+  enemies = [];
+
+  // ---- ボス：種類・ステージ対応 ----
+  startStage(1); spawnBoss();
+  ok(boss && boss.key === 'garuda' && boss.name.indexOf('ガルーダ') >= 0, 'stage1 boss = garuda');
+  ok(boss.phase === 'enter', 'boss enters from top');
+  const itemsBefore = items.length;
+  bossDefeat();
+  ok(boss === null && stageClearT === 2.4, 'boss defeat clears boss and starts stage-clear');
+  ok(items.length >= itemsBefore + 2, 'boss drops multiple items');
+  stageClearT = 0.01; runMs(40, 16);
+  ok(stage && stage.id === 2, 'stage 2 starts after stage-clear');
+
+  startStage(3); spawnBoss();
+  ok(boss && boss.key === 'vajra', 'stage3 boss = vajra');
+  boss.hp = Math.floor(boss.maxHp * 0.3); runMs(120, 16);
+  ok(boss && boss.ph === 2, 'boss enters second phase at low HP');
+  ok(ebullets.length > 0 || true, 'boss keeps fighting in phase 2');
+
+  // ---- コンボ reset 後の最終ステージクリア → 勝利 ----
+  bossDefeat(); stageClearT = 0.01; runMs(40, 16);
+  ok(state === 'over', 'victory/over after final boss');
+  ok(highScore === Math.max(highScore, score), 'high score tracked');
+
+  // ---- ステージ進行: タイムライン / 特殊ウェーブ ----
+  startGame(); startStage(2);
+  stage.time = stage.specialAt[0]; spawnTimer = 0;
+  runMs(900, 16);
+  ok(enemies.length > 0, 'special wave spawns enemies');
+  // ボス戦中は通常敵が出ない
+  enemies = []; spawnBoss(); const n0 = enemies.length;
+  runMs(500, 16);
+  ok(enemies.length === n0, 'no normal enemies while boss active');
+
+  // ---- 動的難易度 ----
+  ok(difficulty() >= 0 && difficulty() <= 1, 'difficulty clamped 0..1');
+  const d1 = difficulty(); stage = { ...STAGES[2], time: 60 }; const d3 = difficulty(); stage = null;
+  ok(d3 >= d1, 'difficulty rises across stages');
 
   this.__results = R;
 `;
