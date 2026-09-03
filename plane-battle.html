@@ -317,7 +317,7 @@
         updatePowerHud();
       }
     } else {
-      shield = cf.dur; addPopup(it.x, it.y, cf.label + '！', cf.color);
+      shield = cf.dur; addPopup(it.x, it.y, cf.label + '!', cf.color);
     }
   }
 
@@ -585,7 +585,8 @@
       p.t += dt;
       if (p.g) p.vy += 240 * dt;                 // 残り火は重力落下
       p.x += p.vx * dt; p.y += p.vy * dt;
-      p.vx *= 0.92; p.vy *= 0.92;
+      const pDamp = Math.pow(0.92, dt * 60);     // 減衰は時間基準（フレームレート非依存）
+      p.vx *= pDamp; p.vy *= pDamp;
       if (p.t >= p.life) particles.splice(i, 1);
     }
     // 画面効果（シェイク・フラッシュ減衰）
@@ -595,14 +596,16 @@
     // 衝撃波リング
     for (let i = rings.length - 1; i >= 0; i--) {
       const rg = rings[i];
-      rg.t += dt; rg.r += rg.vr * dt; rg.vr *= 0.9;
+      rg.t += dt; rg.r += rg.vr * dt;
+      rg.vr *= Math.pow(0.9, dt * 60);            // フレームレート非依存の減衰
       if (rg.t >= rg.life) rings.splice(i, 1);
     }
     // スモーク
     for (let i = smokes.length - 1; i >= 0; i--) {
       const s = smokes[i];
       s.t += dt; s.r += s.dr * dt; s.x += s.vx * dt; s.y += s.vy * dt;
-      s.vx *= 0.98; s.vy = s.vy * 0.98 - 4 * dt;
+      const sDamp = Math.pow(0.98, dt * 60);      // フレームレート非依存の減衰
+      s.vx *= sDamp; s.vy = s.vy * sDamp - 4 * dt;
       if (s.t >= s.life) smokes.splice(i, 1);
     }
     for (let i = popups.length - 1; i >= 0; i--) {
