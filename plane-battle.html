@@ -21,34 +21,26 @@
 
   .hud {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 6px 10px;
     background: linear-gradient(#1b2940, #152036);
     border-radius: 10px 10px 0 0;
-    font-size: 13px;
+    font-size: 12px;
     user-select: none;
     overflow: hidden;
+    white-space: nowrap;
   }
-  .hud-row { display: flex; align-items: center; gap: 12px; white-space: nowrap; justify-content: space-between; }
-  .hud b { font-size: 16px; color: #ffd23e; }
-  .hud .stat { display: flex; align-items: baseline; gap: 4px; }
-  .hud .label { color: #7f93b8; font-size: 11px; }
-  .hp { color: #ff6b6b; letter-spacing: 1px; font-size: 15px; }
+  .hud-left, .hud-right { display: flex; align-items: center; gap: 10px; white-space: nowrap; min-width: 0; }
+  .hud .stat { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+  .hud .label { color: #7f93b8; font-size: 10px; }
+  .hud b { font-size: 14px; color: #ffd23e; }
+  #score { font-size: 16px; color: #fff; }
+  .hp { color: #ff6b6b; letter-spacing: 1px; font-size: 14px; }
   .hp.low { color: #ff3232; animation: blink 0.4s step-start infinite; }
   @keyframes blink { 50% { opacity: 0.25; } }
-  .lives { color: #9fe6ff; }
-  .lives b { color: #9fe6ff; font-size: 14px; }
-  .bomb { color: #b3a0ff; }
-  .bomb b { color: #b3a0ff; font-size: 15px; }
-  .weapon { color: #ffe27a; }
-  .weapon b { color: #ffe27a; font-size: 15px; }
-  .combo { color: #ff8ce0; }
-  .combo b { color: #ff8ce0; font-size: 16px; }
-  .combo.hot b { color: #ff5b5b; text-shadow: 0 0 8px #ff5b5b; }
-  .buff { color: #9fe6ff; font-size: 11px; height: 1em; line-height: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stage { color: #cfd8ea; }
-  .stage b { color: #cfd8ea; font-size: 14px; }
+  .lives { color: #9fe6ff; font-size: 13px; }
 
   .stage { position: relative; }
   canvas { display: block; }
@@ -95,19 +87,16 @@
 <body>
   <div class="game">
     <div class="hud">
-      <div class="hud-row">
+      <div class="hud-left">
         <span class="stat"><span class="label">SCORE</span> <b id="score">0</b></span>
-        <span class="stat"><span class="label">HIGH</span> <b id="high">0</b></span>
+        <span class="stat"><span class="label">BOMB</span> <b id="bomb">0</b></span>
+        <span class="stat"><span class="label">WEAPON</span> <b id="weapon">Lv.1</b></span>
       </div>
-      <div class="hud-row">
-        <span class="stat"><span class="label">HP</span> <span class="hp" id="hp">♥♥♥</span></span>
-        <span class="stat"><span class="label">残機</span> <span class="lives" id="lives">✈✈✈</span></span>
-        <span class="stat"><span class="label">BOMB</span> <span class="bomb" id="bomb">●0</span></span>
-        <span class="stat"><span class="label">WEAPON</span> <span class="weapon" id="weapon">Lv.1</span></span>
-        <span class="stat"><span class="label">COMBO</span> <span class="combo" id="combo"></span></span>
-        <span class="stat"><span class="label">STAGE</span> <span class="stage" id="stage">1</span></span>
+      <div class="hud-right">
+        <span class="hp" id="hp">♥♥♥</span>
+        <span class="lives" id="lives">✈✈✈</span>
+        <span class="stat"><span class="label">STAGE</span> <b id="stage">1</b></span>
       </div>
-      <div class="buff" id="buff"></div>
     </div>
     <div class="stage">
       <canvas id="game" width="400" height="600"></canvas>
@@ -134,7 +123,7 @@ const W = canvas.width, H = canvas.height;
 
 // ---- DOM ----
 const els = {};
-['score','high','hp','lives','bomb','weapon','combo','stage','buff',
+['score','hp','lives','bomb','weapon','stage',
  'overlay','overlayTitle','desc','finalScore','startBtn'].forEach(id => els[id] = document.getElementById(id));
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -968,23 +957,12 @@ function update(dt) {
 // ============================================================
 function updateHud() {
   els.score.textContent = score;
-  els.high.textContent = Math.max(highScore, score);
   els.hp.textContent = '♥'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, MAX_HP - hp));
   els.hp.classList.toggle('low', hp === 1 && state === 'playing');
   els.lives.textContent = '✈'.repeat(Math.max(0, lives)) + '·'.repeat(Math.max(0, MAX_LIVES - lives));
   els.bomb.textContent = '●' + (bomb > 9 ? '9+' : bomb);
   els.weapon.textContent = 'Lv.' + wlevel;
   els.stage.textContent = stage ? stage.id : '-';
-  const mu = currentMult();
-  els.combo.textContent = (combo >= 2 ? combo + ' HIT ×' + mu : (scoreTimer > 0 ? '×2' : ''));
-  els.combo.classList.toggle('hot', combo >= 16);
-  const buffs = [];
-  if (invulnTimer > 0) buffs.push('無敵 ' + invulnTimer.toFixed(1));
-  if (rapidTimer > 0) buffs.push('連射 ' + rapidTimer.toFixed(1));
-  if (speedyTimer > 0) buffs.push('高速 ' + speedyTimer.toFixed(1));
-  if (scoreTimer > 0) buffs.push('×2 ' + scoreTimer.toFixed(1));
-  if (shield > 0) buffs.push('シールド ' + shield.toFixed(1));
-  els.buff.textContent = buffs.join('  ') || '';
 }
 
 function showOverlay(mode) {
@@ -998,13 +976,13 @@ function showOverlay(mode) {
     els.overlayTitle.textContent = 'ゲームオーバー';
     els.startBtn.textContent = 'リトライ';
     els.finalScore.style.display = '';
-    els.finalScore.textContent = '最終スコア ' + score;
+    els.finalScore.textContent = '最終スコア ' + score + '　／　HIGH ' + Math.max(highScore, score);
     els.desc.innerHTML = '残念！再挑戦しよう。<br><b>Enter</b> か ボタンでリトライ';
   } else if (mode === 'victory') {
     els.overlayTitle.textContent = '全ステージクリア!';
     els.startBtn.textContent = 'もう一度遊ぶ';
     els.finalScore.style.display = '';
-    els.finalScore.textContent = '最終スコア ' + score;
+    els.finalScore.textContent = '最終スコア ' + score + '　／　HIGH ' + Math.max(highScore, score);
     els.desc.innerHTML = '見事！すべてのステージを突破した！<br><b>Enter</b> か ボタンで最初から';
   } else {
     els.overlayTitle.textContent = 'スカイファイター';
@@ -1451,6 +1429,31 @@ function drawCombo() {
   ctx.restore();
 }
 
+// 強化状態（シールド/無敵/連射/高速/スコア×2）を画面上部右に描画。
+// DOMのステータスバーではなくキャンバスへ置くことで、レイアウトが動かないようにする。
+function drawBuffs() {
+  const list = [];
+  if (shield > 0) list.push(['シールド', '#7dff9e', shield]);
+  if (invulnTimer > 0) list.push(['無敵', '#9fe6ff', invulnTimer]);
+  if (rapidTimer > 0) list.push(['連射', '#ffb347', rapidTimer]);
+  if (speedyTimer > 0) list.push(['高速', '#5af2c0', speedyTimer]);
+  if (scoreTimer > 0) list.push(['×2', '#ff8ce0', scoreTimer]);
+  if (!list.length) return;
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 11px "Yu Gothic", "Meiryo", sans-serif';
+  let y = 44;
+  for (const [label, color, t] of list) {
+    const text = label + ' ' + t.toFixed(1);
+    const w = text.length * 6.5 + 10;
+    ctx.fillStyle = 'rgba(8,14,30,0.6)';
+    ctx.fillRect(W - 12 - w, y - 11, w, 15);
+    ctx.fillStyle = color;
+    ctx.fillText(text, W - 12, y);
+    y += 17;
+  }
+  ctx.textAlign = 'center';
+}
+
 function drawLowHpWarn() {
   if (hp !== 1 || state !== 'playing') return;
   const a = 0.22 + Math.sin(elapsed * 6) * 0.12;
@@ -1498,6 +1501,7 @@ function draw() {
   ctx.restore();
 
   if (boss) drawBossHud();
+  drawBuffs();
   drawCombo();
 
   if (state !== 'over') drawPlayer();
