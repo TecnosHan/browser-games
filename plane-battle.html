@@ -6,6 +6,7 @@
 <title>スカイファイター</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow: hidden; }
 
   body {
     min-height: 100vh;
@@ -1006,7 +1007,7 @@ function showOverlay(mode) {
       '射撃: 自動連射　ボム: <b>X / Shift</b><br>' +
       '敵を倒してコンボとスコアを稼ぎ、各ステージの<b>ボス</b>を倒そう。<br>' +
       'アイテムで武器強化・シールド・ボムなどを獲得！<br>' +
-      '<span style="color:#5c6f9a;font-size:11px">ver.0.7</span>';
+      '<span style="color:#5c6f9a;font-size:11px">ver.0.8</span>';
   }
 }
 
@@ -1578,6 +1579,25 @@ document.addEventListener('keyup', (e) => {
 });
 
 els.startBtn.addEventListener('click', () => { els.startBtn.blur(); startGame(); });
+
+// ============================================================
+// 画面フィット（自動スケーリング）
+//   内部ロジックは 400x600 のままで、見た目だけ transform:scale で拡縮する。
+//   ウィンドウ/ズーム率に合わせ全体が収まり、どの画面でも大きすぎ/小さすぎ
+//   にならないようにする。
+// ============================================================
+if (typeof window !== 'undefined' && document.querySelector) {
+  const gameEl = document.querySelector('.game');
+  const fitScale = () => {
+    if (!gameEl) return;
+    const baseW = 400;
+    const baseH = 600 + 34; // キャンバス + HUD
+    const s = Math.min((window.innerWidth - 16) / baseW, (window.innerHeight - 16) / baseH, 2);
+    gameEl.style.transform = 'scale(' + Math.max(0.35, s) + ')';
+  };
+  fitScale();
+  window.addEventListener('resize', fitScale);
+}
 
 // ============================================================
 // 初期化
