@@ -1076,14 +1076,6 @@ function drawBg() {
 
 function drawPlayer() {
   if (state !== 'playing') return;
-  // 低速移動中は実際の被弾判定コアを機体中心に表示
-  if (keys['Space']) {
-    ctx.beginPath(); ctx.arc(player.x, player.y, HIT_R, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(160,230,255,0.95)'; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(player.x, player.y, 1.6, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff'; ctx.fill();
-  }
   if (invuln > 0 && Math.floor(invuln * 8) % 2 === 0) return;
   if (invulnTimer > 0 && Math.floor(elapsed * 6) % 2 === 0) { /* 無敵中は光るリングのみ */ }
   const x = player.x, y = player.y;
@@ -1141,6 +1133,14 @@ function drawPlayer() {
   if (invulnTimer > 0) {
     ctx.beginPath(); ctx.arc(x, y, player.r + 12 + Math.sin(elapsed * 10) * 2, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(159,230,255,0.8)'; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+  // 低速移動中は実際の被弾判定コアを機体中心に表示（スプライトの手前に描画）
+  if (keys['Space']) {
+    ctx.beginPath(); ctx.arc(player.x, player.y, HIT_R, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(160,230,255,0.95)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(player.x, player.y, 1.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
   }
 }
 
