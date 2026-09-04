@@ -65,12 +65,9 @@ const selftest = `
   bullets = []; wlevel = 2; fireTimer = 0; run(1, 16);
   ok(bullets.length === 2, 'Lv.2 fires 2');
   bullets = []; wlevel = 3; fireTimer = 0; run(1, 16);
-  ok(bullets.length === 3, 'Lv.3 fires 3');
-  bullets = []; wlevel = 4; fireTimer = 0; run(1, 16);
-  ok(bullets.length === 4, 'Lv.4 fires 4');
-  bullets = []; wlevel = 5; fireTimer = 0; run(1, 16);
-  ok(bullets.length === 5, 'Lv.5 fires 5');
-  ok(WEAPON[5].pierce >= 1 && WEAPON[5].spd > WEAPON[1].spd, 'Lv.5 pierce + faster than Lv.1');
+  ok(bullets.length === 3, 'Lv.3 fires 3 (3-way fan at cap)');
+  ok(WEAPON_MAX === 3 && WEAPON[4] === undefined && WEAPON[5] === undefined, 'weapon caps at Lv.3');
+  ok(WEAPON[3].angles.length === 3 && WEAPON[3].kind === 'fans', 'cap level is the 3-way spread');
 
   // ---- 武器貫通 ----
   invuln = 99;

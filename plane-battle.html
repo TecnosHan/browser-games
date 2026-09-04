@@ -139,7 +139,7 @@ let highScore = getHigh();
 const MAX_HP = 3;            // プレイヤーHP上限(=こうかとん方式の体力)
 const MAX_LIVES = 3;         // 残機
 const BOMB_MAX = 3;          // ボム最大所持
-const WEAPON_MAX = 5;        // 武器レベル上限
+const WEAPON_MAX = 3;        // 武器レベル上限（Lv.3＝3方向散弾が最高）
 const PLAYER_SPEED0 = 245;   // 基本移動速度
 const FIRE_INTERVAL0 = 0.16; // Lv.1の射撃間隔（自動連射）
 const SLOW_SPEED_FACTOR = 0.5; // Space低速移動 = 通常の50%
@@ -157,8 +157,6 @@ const WEAPON = {
   1: { angles: [0.0],                  offsets: [0],        interval: 1.00, spd: 1.00, size: 3.2, pierce: 0, kind: 'bolt'  },
   2: { angles: [0.0, 0.0],             offsets: [-7, 7],    interval: 1.00, spd: 1.06, size: 3.4, pierce: 0, kind: 'bolt'  },
   3: { angles: [-0.14, 0, 0.14],       offsets: [0, 0, 0],  interval: 0.72, spd: 1.12, size: 3.6, pierce: 0, kind: 'fans'  },
-  4: { angles: [-0.16, -0.05, 0.05, 0.16], offsets: [-10, -3, 3, 10], interval: 0.62, spd: 1.24, size: 4.2, pierce: 1, kind: 'rail'  },
-  5: { angles: [-0.32, -0.16, 0, 0.16, 0.32], offsets: [0, -4, 0, 4, 0], interval: 0.50, spd: 1.36, size: 4.8, pierce: 2, kind: 'rail' },
 };
 
 // アイテム定義（時間系は dur 秒）
@@ -1007,7 +1005,7 @@ function showOverlay(mode) {
       '射撃: 自動連射　ボム: <b>X / Shift</b><br>' +
       '敵を倒してコンボとスコアを稼ぎ、各ステージの<b>ボス</b>を倒そう。<br>' +
       'アイテムで武器強化・シールド・ボムなどを獲得！<br>' +
-      '<span style="color:#5c6f9a;font-size:11px">ver.0.8</span>';
+      '<span style="color:#5c6f9a;font-size:11px">ver.0.9</span>';
   }
 }
 
