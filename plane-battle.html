@@ -17,7 +17,7 @@
     color: #fff;
   }
 
-  .game { display: flex; flex-direction: column; }
+  .game { display: flex; flex-direction: column; width: 400px; }
 
   .hud {
     display: flex;
@@ -28,6 +28,7 @@
     border-radius: 10px 10px 0 0;
     font-size: 13px;
     user-select: none;
+    overflow: hidden;
   }
   .hud-row { display: flex; align-items: center; gap: 12px; white-space: nowrap; justify-content: space-between; }
   .hud b { font-size: 16px; color: #ffd23e; }
@@ -44,8 +45,8 @@
   .weapon b { color: #ffe27a; font-size: 15px; }
   .combo { color: #ff8ce0; }
   .combo b { color: #ff8ce0; font-size: 16px; }
-  .combo.hot b { color: #ff5b5b; font-size: 19px; text-shadow: 0 0 8px #ff5b5b; }
-  .buff { color: #9fe6ff; font-size: 11px; min-height: 1em; }
+  .combo.hot b { color: #ff5b5b; text-shadow: 0 0 8px #ff5b5b; }
+  .buff { color: #9fe6ff; font-size: 11px; height: 1em; line-height: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stage { color: #cfd8ea; }
   .stage b { color: #cfd8ea; font-size: 14px; }
 
@@ -566,7 +567,7 @@ function spawnBoss() {
   const bd = BOSS_DATA[key];
   const maxHp = bossMaxHp(key);
   boss = {
-    key, name: bd.name, r: bd.r,
+    key, name: bd.name, r: bd.r, targetY: bd.targetY,
     x: W / 2, y: -90, hp: maxHp, maxHp,
     pw: 1 + 0.10 * (wlevel - 1),
     vx: (Math.random() < 0.5 ? -1 : 1) * 70, vy: 90,

@@ -183,6 +183,9 @@ const selftest = `
   startStage(1); spawnBoss();
   ok(boss && boss.key === 'garuda' && boss.name.indexOf('ガルーダ') >= 0, 'stage1 boss = garuda');
   ok(boss.phase === 'enter', 'boss enters from top');
+  invuln = 99; runMs(5000, 16);
+  ok(boss && boss.phase === 'fight', 'boss stops descending and enters fight phase');
+  ok(boss && boss.y === BOSS_DATA.garuda.targetY, 'boss halts at targetY instead of flying off');
   const itemsBefore = items.length;
   bossDefeat();
   ok(boss === null && stageClearT === 2.4, 'boss defeat clears boss and starts stage-clear');
