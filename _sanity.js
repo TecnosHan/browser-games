@@ -57,10 +57,9 @@ const selftest = `
   ok(wlevel === 1 && hp === MAX_HP && lives === MAX_LIVES && bomb === 0, 'fresh stats');
   ok(combo === 0 && comboMult() === 1, 'combo starts zero');
 
-  // ---- 発射・武器レベル ----
-  firing = true;
+  // ---- 発射・武器レベル（自動連射） ----
   runMs(200, 16);
-  ok(bullets.length > 0, 'fires while holding space');
+  ok(bullets.length > 0, 'auto-fires without firing input');
   bullets = []; wlevel = 1; fireTimer = 0; run(1, 16);
   ok(bullets.length === 1, 'Lv.1 fires 1');
   bullets = []; wlevel = 2; fireTimer = 0; run(1, 16);
@@ -74,14 +73,16 @@ const selftest = `
   ok(WEAPON[5].pierce >= 1 && WEAPON[5].spd > WEAPON[1].spd, 'Lv.5 pierce + faster than Lv.1');
 
   // ---- 武器貫通 ----
-  firing = false;
   invuln = 99;
+  // 自動連射の弾が列を乱さないよう、攻撃列を機体の真上列から右へずらす
+  const railX = player.x + 40;
+  wlevel = 1; fireTimer = 0;
   enemies = [
-    { type: 'fighter', x: player.x, y: player.y - 30, r: 14, hp: 1, maxHp: 1, score: 100, fl: 0, vx: 0, vy: 0 },
-    { type: 'fighter', x: player.x, y: player.y - 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 1, vx: 0, vy: 0 },
-    { type: 'fighter', x: player.x, y: player.y + 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 2, vx: 0, vy: 0 },
+    { type: 'fighter', x: railX, y: player.y - 30, r: 14, hp: 1, maxHp: 1, score: 100, fl: 0, vx: 0, vy: 0 },
+    { type: 'fighter', x: railX, y: player.y - 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 1, vx: 0, vy: 0 },
+    { type: 'fighter', x: railX, y: player.y + 10, r: 14, hp: 1, maxHp: 1, score: 100, fl: 2, vx: 0, vy: 0 },
   ];
-  bullets = [{ x: player.x, y: player.y + 10, vx: 0, vy: -500, r: 4, kind: 'rail', pierce: 1 }];
+  bullets = [{ x: railX, y: player.y + 10, vx: 0, vy: -500, r: 4, kind: 'rail', pierce: 1 }];
   runMs(120, 16);
   ok(enemies.length === 1, 'pierce-1 bullet destroys 2 enemies then stops (' + enemies.length + ' left)');
   enemies = []; bullets = [];
@@ -183,7 +184,8 @@ const selftest = `
   startStage(1); spawnBoss();
   ok(boss && boss.key === 'garuda' && boss.name.indexOf('ガルーダ') >= 0, 'stage1 boss = garuda');
   ok(boss.phase === 'enter', 'boss enters from top');
-  invuln = 99; runMs(5000, 16);
+  invuln = 99; boss.hp = boss.maxHp = 1e9; // 自動連射で撃破されないよう耐久を延ばす
+  runMs(5000, 16);
   ok(boss && boss.phase === 'fight', 'boss stops descending and enters fight phase');
   ok(boss && boss.y === BOSS_DATA.garuda.targetY, 'boss halts at targetY instead of flying off');
   const itemsBefore = items.length;
@@ -218,6 +220,23 @@ const selftest = `
   ok(difficulty() >= 0 && difficulty() <= 1, 'difficulty clamped 0..1');
   const d1 = difficulty(); stage = { ...STAGES[2], time: 60 }; const d3 = difficulty(); stage = null;
   ok(d3 >= d1, 'difficulty rises across stages');
+
+  // ---- 自動連射 / 低速移動 / 擦弾 ----
+  startGame();
+  bullets = []; fireTimer = 0; run(1, 16);
+  ok(bullets.length > 0, 'auto-fire without holding space');
+  invuln = 99;
+  player.x = 200; player.y = 400; keys['ArrowUp'] = true; keys['Space'] = false;
+  runMs(200, 16); const fastDy = 400 - player.y;
+  player.x = 200; player.y = 400; keys['Space'] = true;
+  runMs(200, 16); const slowDy = 400 - player.y;
+  keys['ArrowUp'] = false; keys['Space'] = false;
+  ok(fastDy > 0 && slowDy > 0 && slowDy / fastDy < SLOW_SPEED_FACTOR + 0.15, 'Space reduces move speed to ~' + SLOW_SPEED_FACTOR);
+  const sG = score;
+  ebullets = [{ x: player.x + HIT_R + 4, y: player.y, vx: 0, vy: 120, r: 4, kind: 'shot' }];
+  runMs(32, 16);
+  ok(score === sG + GRAZE_SCORE, 'graze grants GRAZE_SCORE once per bullet');
+  ok(ebullets[0] && ebullets[0].grazed, 'grazed bullet is flagged');
 
   this.__results = R;
 `;

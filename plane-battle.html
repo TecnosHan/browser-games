@@ -140,11 +140,15 @@ const MAX_LIVES = 3;         // 残機
 const BOMB_MAX = 3;          // ボム最大所持
 const WEAPON_MAX = 5;        // 武器レベル上限
 const PLAYER_SPEED0 = 245;   // 基本移動速度
-const FIRE_INTERVAL0 = 0.16; // Lv.1の射撃間隔
+const FIRE_INTERVAL0 = 0.16; // Lv.1の射撃間隔（自動連射）
+const SLOW_SPEED_FACTOR = 0.5; // Space低速移動 = 通常の50%
+const HIT_R = 6;            // 被弾受付半径（当たり判定のコア）
+const GRAZE_R = 16;         // 擦弾判定半径（受付 < graze < 見た目大きさ）
+const GRAZE_SCORE = 50;     // 擦弾1回のスコア
 const COMBO_WINDOW = 2.6;    // コンボ維持時間(秒)
 const MAX_PARTICLES = 280;   // パーティクル上限
 const MAX_ENEMIES = 20;
-const ITEM_DROP_CHANCE = 0.085;
+const ITEM_DROP_CHANCE = 0.12;
 
 // 武器レベル定義: 角度 / 横ずれ / 射間倍率 / 弾速倍率 / 弾サイズ / 貫通数
 // レベルが上がるごとに弾数・速度・角度・貫通・見た目が変わる。
@@ -181,7 +185,7 @@ let rapidTimer = 0, speedyTimer = 0, scoreTimer = 0, invulnTimer = 0;
 let player;
 let bullets = [], ebullets = [], enemies = [], items = [];
 let particles = [], rings = [], smokes = [], popups = [], stars = [];
-let keys = {}, firing = false, fireTimer = 0, spawnTimer = 0;
+let keys = {}, fireTimer = 0, spawnTimer = 0;
 let invuln = 0, shake = 0, flashA = 0, lowHpWarn = 0;
 let boss = null, bossIntro = 0, stageClearT = 0;
 let stage = null;                    // 現在ステージ
@@ -454,7 +458,7 @@ function itemEntity(type, x, y) {
 }
 
 function pickItemType() {
-  let pool = [['power', 34], ['shield', 14], ['heal', 10], ['bomb', 9], ['invuln', 8], ['rapid', 8], ['speedy', 6], ['scores', 6], ['clear', 3]];
+  let pool = [['power', 46], ['shield', 12], ['heal', 9], ['bomb', 8], ['invuln', 7], ['rapid', 7], ['speedy', 5], ['scores', 5], ['clear', 3]];
   if (hp >= MAX_HP) pool = pool.filter(([t]) => t !== 'heal');
   const total = pool.reduce((s, [, w]) => s + w, 0);
   let roll = rand(0, total);
@@ -664,7 +668,7 @@ function updateBoss(dt) {
   }
 
   // 体当たり接触
-  if (invuln <= 0 && invulnTimer <= 0 && Math.hypot(b.x - player.x, b.y - player.y) < b.r + player.r) {
+  if (invuln <= 0 && invulnTimer <= 0 && Math.hypot(b.x - player.x, b.y - player.y) < b.r + HIT_R) {
     if (playerHit(1.4)) return;
   }
 }
@@ -756,8 +760,9 @@ function update(dt) {
     if (comboTimer <= 0) combo = 0;
   }
 
-  // プレイヤー移動
-  const pspeed = PLAYER_SPEED0 * (speedyTimer > 0 ? 1.35 : 1);
+  // プレイヤー移動（Space で低速移動，低速中は当たり判定を表示）
+  const slow = keys['Space'] > 0;
+  const pspeed = PLAYER_SPEED0 * (speedyTimer > 0 ? 1.35 : 1) * (slow ? SLOW_SPEED_FACTOR : 1);
   let dx = 0, dy = 0;
   if (keys['ArrowLeft'] || keys['KeyA']) dx -= 1;
   if (keys['ArrowRight'] || keys['KeyD']) dx += 1;
@@ -768,11 +773,11 @@ function update(dt) {
   player.y = clamp(player.y + dy * pspeed * dt, 40, H - 24);
   player.tilt += (0.28 * dx - player.tilt) * Math.min(1, 10 * dt);
 
-  // 発射
+  // 発射（自動連射）
   fireTimer -= dt;
   const wcfg = WEAPON[wlevel] || WEAPON[1];
   const interval = FIRE_INTERVAL0 * wcfg.interval * (rapidTimer > 0 ? 0.6 : 1);
-  if (firing && fireTimer <= 0) {
+  if (fireTimer <= 0) {
     fireTimer = interval;
     for (let i = 0; i < wcfg.angles.length; i++) {
       const a = wcfg.angles[i];
@@ -847,7 +852,7 @@ function update(dt) {
     if (destroyed) continue;
 
     // 特攻機は接触で自爆
-    if (e.type === 'kamikaze' && Math.hypot(player.x - e.x, player.y - e.y) < 30 && invuln <= 0 && invulnTimer <= 0) {
+    if (e.type === 'kamikaze' && Math.hypot(player.x - e.x, player.y - e.y) < e.r + HIT_R && invuln <= 0 && invulnTimer <= 0) {
       enemies.splice(i, 1);
       explode(e.x, e.y, 0.9);
       if (playerHit(1.2)) {
@@ -857,7 +862,7 @@ function update(dt) {
     }
 
     // 自機との接触（通常）
-    if (invuln <= 0 && invulnTimer <= 0 && Math.hypot(e.x - player.x, e.y - player.y) < e.r + player.r) {
+    if (invuln <= 0 && invulnTimer <= 0 && Math.hypot(e.x - player.x, e.y - player.y) < e.r + HIT_R) {
       enemies.splice(i, 1);
       if (playerHit(1.4)) return;
     }
@@ -885,7 +890,15 @@ function update(dt) {
 
     if (b.y > H + 24 || b.y < -24 || b.x < -24 || b.x > W + 24) { ebullets.splice(i, 1); continue; }
 
-    if (invuln <= 0 && invulnTimer <= 0 && Math.hypot(b.x - player.x, b.y - player.y) < b.r + player.r) {
+    // 擦弾（Graze）: 弾の縁がGRAZEリングを通過したら1発につき1回だけ加点
+    const dToPlayer = Math.hypot(b.x - player.x, b.y - player.y);
+    if (!b.grazed && dToPlayer >= HIT_R + b.r && dToPlayer < GRAZE_R + b.r) {
+      b.grazed = true;
+      score += GRAZE_SCORE;
+      addPopup(player.x, player.y - 22, 'GRAZE +' + GRAZE_SCORE, '#8fd8ff', 11);
+    }
+
+    if (invuln <= 0 && invulnTimer <= 0 && dToPlayer < HIT_R + b.r) {
       ebullets.splice(i, 1);
       if (playerHit()) return;
     }
@@ -989,8 +1002,8 @@ function showOverlay(mode) {
     els.startBtn.textContent = 'スタート';
     els.finalScore.style.display = 'none';
     els.desc.innerHTML =
-      '移動: <b>← → ↑ ↓</b> または <b>W A S D</b><br>' +
-      '射撃: <b>SPACE</b>（長押しで連射）　ボム: <b>X / Shift</b><br>' +
+      '移動: <b>← → ↑ ↓</b> または <b>W A S D</b>（<b>SPACE</b>で低速移動）<br>' +
+      '射撃: 自動連射　ボム: <b>X / Shift</b><br>' +
       '敵を倒してコンボとスコアを稼ぎ、各ステージの<b>ボス</b>を倒そう。<br>' +
       'アイテムで武器強化・シールド・ボムなどを獲得！';
   }
@@ -1063,6 +1076,14 @@ function drawBg() {
 
 function drawPlayer() {
   if (state !== 'playing') return;
+  // 低速移動中は実際の被弾判定コアを機体中心に表示
+  if (keys['Space']) {
+    ctx.beginPath(); ctx.arc(player.x, player.y, HIT_R, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(160,230,255,0.95)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(player.x, player.y, 1.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+  }
   if (invuln > 0 && Math.floor(invuln * 8) % 2 === 0) return;
   if (invulnTimer > 0 && Math.floor(elapsed * 6) % 2 === 0) { /* 無敵中は光るリングのみ */ }
   const x = player.x, y = player.y;
@@ -1542,7 +1563,6 @@ function loop(now) {
 document.addEventListener('keydown', (e) => {
   if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
   keys[e.code] = true;
-  if (e.code === 'Space') firing = true;
   if ((e.code === 'KeyX' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && state === 'playing') {
     useBomb();
   }
@@ -1550,7 +1570,6 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
-  if (e.code === 'Space') firing = false;
 });
 
 els.startBtn.addEventListener('click', () => { els.startBtn.blur(); startGame(); });
