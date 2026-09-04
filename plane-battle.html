@@ -894,6 +894,7 @@ function update(dt) {
     if (!b.grazed && dToPlayer >= HIT_R + b.r && dToPlayer < GRAZE_R + b.r) {
       b.grazed = true;
       score += GRAZE_SCORE;
+      updateHud();
       addPopup(player.x, player.y - 22, 'GRAZE +' + GRAZE_SCORE, '#8fd8ff', 11);
     }
 
@@ -1005,7 +1006,7 @@ function showOverlay(mode) {
       '射撃: 自動連射　ボム: <b>X / Shift</b><br>' +
       '敵を倒してコンボとスコアを稼ぎ、各ステージの<b>ボス</b>を倒そう。<br>' +
       'アイテムで武器強化・シールド・ボムなどを獲得！<br>' +
-      '<span style="color:#5c6f9a;font-size:11px">ver.0.9</span>';
+      '<span style="color:#5c6f9a;font-size:11px">ver.1.0</span>';
   }
 }
 
