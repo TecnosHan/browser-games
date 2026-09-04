@@ -1134,14 +1134,17 @@ function drawPlayer() {
     ctx.beginPath(); ctx.arc(x, y, player.r + 12 + Math.sin(elapsed * 10) * 2, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(159,230,255,0.8)'; ctx.lineWidth = 1.6; ctx.stroke();
   }
-  // 低速移動中は実際の被弾判定コアを機体中心に表示（スプライトの手前に描画）
-  if (keys['Space']) {
-    ctx.beginPath(); ctx.arc(player.x, player.y, HIT_R, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(160,230,255,0.95)'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.beginPath(); ctx.arc(player.x, player.y, 1.6, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff'; ctx.fill();
-  }
+}
+
+// 低速移動中、実際の被弾判定コアを常に最前面に表示する独立レイヤー。
+// drawPlayer 内の無敵点滅 return の影響を受けないよう、描画の最後に呼ぶ。
+function drawHitbox() {
+  if (state !== 'playing' || !keys['Space']) return;
+  ctx.beginPath(); ctx.arc(player.x, player.y, HIT_R, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(2,24,52,0.6)'; ctx.fill();
+  ctx.strokeStyle = '#7fd9ff'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(player.x, player.y, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff'; ctx.fill();
 }
 
 function drawEnemy(e) {
@@ -1526,6 +1529,7 @@ function draw() {
   drawCombo();
 
   if (state !== 'over') drawPlayer();
+  drawHitbox();
 
   // ステージクリア表示
   if (stageClearT > 0) {
